@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import time
+import random
 from pathlib import Path
 from flows.robot_wont_move import FLOW as FLOW_WONT_MOVE
 from flows.protective_state import FLOW as FLOW_PROTECTIVE
@@ -99,6 +100,102 @@ def _check_admin_password(entered: str) -> bool:
     except Exception:
         correct = "mir-admin"
     return entered.strip() == correct
+
+
+# ── COMMENTS ──────────────────────────────────────────────────────────────────
+
+def _load_comments():
+    cf = _CONTRIB / "comments.json"
+    if cf.exists():
+        try:
+            with open(cf, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+
+def _save_comment(flow_key, node_id, message, author):
+    _CONTRIB.mkdir(exist_ok=True)
+    entries = _load_comments()
+    comment_id = f"{time.strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}"
+    entries.append({
+        "id": comment_id,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "flow": flow_key,
+        "node": node_id,
+        "message": message,
+        "author": author.strip() or None,
+    })
+    with open(_CONTRIB / "comments.json", "w", encoding="utf-8") as f:
+        json.dump(entries, f, indent=2, ensure_ascii=False)
+
+
+def _delete_comment(comment_id):
+    entries = [c for c in _load_comments() if c.get("id") != comment_id]
+    with open(_CONTRIB / "comments.json", "w", encoding="utf-8") as f:
+        json.dump(entries, f, indent=2, ensure_ascii=False)
+
+
+def render_comments_widget(node_label):
+    node_id  = st.session_state.get("current_node", "unknown")
+    flow_key = st.session_state.get("selected_flow", "home")
+    wkey     = f"{flow_key}__{node_id}"
+
+    all_comments  = _load_comments()
+    node_comments = [c for c in all_comments if c["flow"] == flow_key and c["node"] == node_id]
+
+    # ── Show existing comments ─────────────────────────────────────────────
+    if node_comments:
+        st.write("")
+        st.caption("**💬 Comments:**")
+        for c in node_comments:
+            author_part = f" — *{c['author']}*" if c.get("author") else ""
+            date_part   = c["timestamp"].split(" ")[0]
+            bubble = (
+                f"<div style='"
+                f"background:#f0f2f6;padding:8px 14px;border-radius:8px;margin:4px 0;"
+                f"border-left:3px solid #ccc;'>"
+                f"{c['message']}{author_part} "
+                f"<span style='color:#aaa;font-size:0.8em;'>· {date_part}</span>"
+                f"</div>"
+            )
+            if st.session_state.admin_mode:
+                col_msg, col_del = st.columns([11, 1])
+                with col_msg:
+                    st.markdown(bubble, unsafe_allow_html=True)
+                with col_del:
+                    if st.button("🗑️", key=f"del_{c['id']}", help="Delete comment"):
+                        _delete_comment(c["id"])
+                        st.rerun()
+            else:
+                st.markdown(bubble, unsafe_allow_html=True)
+
+    # ── Add a comment ──────────────────────────────────────────────────────
+    with st.expander("💬 Add a comment"):
+        st.caption(
+            "Share a tip, a gotcha, or anything extra that helped you. "
+            "Your comment will be visible to everyone."
+        )
+        msg = st.text_area(
+            "Comment",
+            placeholder="e.g. 'On the MiR600 this button is on the right side, not the left'",
+            key=f"cmsg_{wkey}",
+            label_visibility="collapsed",
+        )
+        name = st.text_input(
+            "Name",
+            placeholder="Your name (optional)",
+            key=f"cname_{wkey}",
+            label_visibility="collapsed",
+        )
+        if st.button("Post comment", key=f"cpost_{wkey}", use_container_width=True):
+            if msg.strip():
+                _save_comment(flow_key, node_id, msg.strip(), name)
+                st.success("Comment posted!")
+                st.rerun()
+            else:
+                st.warning("Please write something first.")
 
 
 def render_contribute_widget(node_label):
@@ -366,6 +463,7 @@ def render_question(node_id, node):
                 st.rerun()
 
     render_nav_buttons(node_id)
+    render_comments_widget(node["text"])
     render_contribute_widget(node["text"])
 
 
@@ -418,6 +516,7 @@ def render_checklist(node_id, node):
             st.caption(f"Complete {len(remaining)} more step(s) above to enable the green button.")
 
     render_nav_buttons(node_id)
+    render_comments_widget(node["text"])
     render_contribute_widget(node["text"])
 
 
@@ -445,6 +544,7 @@ def render_solution(node):
             go_back()
             st.rerun()
 
+    render_comments_widget(node["title"])
     render_contribute_widget(node["title"])
 
 
