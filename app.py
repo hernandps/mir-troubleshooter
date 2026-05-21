@@ -1,4 +1,6 @@
 import streamlit as st
+import json
+import time
 from pathlib import Path
 from flows.robot_wont_move import FLOW as FLOW_WONT_MOVE
 from flows.protective_state import FLOW as FLOW_PROTECTIVE
@@ -34,6 +36,117 @@ def _stub(title, note):
     }
 
 
+# ── CONTRIBUTION SYSTEM ───────────────────────────────────────────────────────
+# Users can upload real photos/videos and report corrections.
+# All submissions are saved to contributions/ for the operator to review.
+
+_CONTRIB = Path("contributions")
+
+
+def _load_feedback():
+    fb_file = _CONTRIB / "feedback.json"
+    if fb_file.exists():
+        try:
+            with open(fb_file, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+
+def _save_feedback(flow_key, node_id, node_label, message):
+    _CONTRIB.mkdir(exist_ok=True)
+    entries = _load_feedback()
+    entries.append({
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "flow": flow_key,
+        "node": node_id,
+        "step": node_label,
+        "message": message,
+    })
+    with open(_CONTRIB / "feedback.json", "w", encoding="utf-8") as f:
+        json.dump(entries, f, indent=2, ensure_ascii=False)
+
+
+def _save_upload(flow_key, node_id, uploaded_file):
+    upload_dir = _CONTRIB / "uploads" / flow_key / node_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    safe_name = uploaded_file.name.replace(" ", "_")
+    filename = f"{ts}_{safe_name}"
+    with open(upload_dir / filename, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    with open(upload_dir / f"{ts}_meta.json", "w", encoding="utf-8") as f:
+        json.dump({
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "flow": flow_key,
+            "node": node_id,
+            "original_name": uploaded_file.name,
+            "saved_as": filename,
+        }, f, indent=2)
+
+
+def _count_uploads():
+    up_dir = _CONTRIB / "uploads"
+    if not up_dir.exists():
+        return 0
+    return sum(1 for f in up_dir.rglob("*") if f.is_file() and not f.name.endswith("_meta.json"))
+
+
+def render_contribute_widget(node_label):
+    node_id = st.session_state.get("current_node", "unknown")
+    flow_key = st.session_state.get("selected_flow", "home")
+    widget_key = f"{flow_key}__{node_id}"
+
+    st.write("")
+    with st.expander("📸 Add a photo  ·  ⚠️ Report an issue"):
+        tab_up, tab_fb = st.tabs(["📁 Upload photo / video", "⚠️ Report an issue"])
+
+        with tab_up:
+            st.caption(
+                "Have a real photo or video that shows this step? Upload it here — "
+                "it helps people who struggle with text-only instructions."
+            )
+            uploaded = st.file_uploader(
+                "file",
+                type=["jpg", "jpeg", "png", "gif", "mp4", "mov", "webp"],
+                key=f"up_{widget_key}",
+                label_visibility="collapsed",
+            )
+            if uploaded:
+                if uploaded.type.startswith("image"):
+                    st.image(uploaded, use_container_width=True)
+                if st.button(
+                    "Submit photo / video",
+                    key=f"sub_up_{widget_key}",
+                    use_container_width=True,
+                ):
+                    _save_upload(flow_key, node_id, uploaded)
+                    st.success("Thank you! Your file has been saved for review.")
+
+        with tab_fb:
+            st.caption(
+                "Found a mistake, a wrong image, or a missing step? "
+                "Describe it below and we will fix it."
+            )
+            msg = st.text_area(
+                "msg",
+                placeholder=(
+                    "e.g. 'The relay image is for MiR250 but I have a MiR600'\n"
+                    "      'Step 3 is missing — you also need to press the Reset button first'"
+                ),
+                key=f"fb_{widget_key}",
+                label_visibility="collapsed",
+            )
+            if st.button("Send feedback", key=f"sub_fb_{widget_key}", use_container_width=True):
+                if msg.strip():
+                    _save_feedback(flow_key, node_id, node_label, msg)
+                    st.success("Feedback saved. Thank you!")
+                else:
+                    st.warning("Please write something before submitting.")
+
+
+# ── FLOWS ─────────────────────────────────────────────────────────────────────
 # Each entry: the flow dict to use + the node to start at.
 # "Robot Cannot Move" and "Robot Won't Turn On" share the same flow
 # but enter at different nodes, skipping the redundant "Is the robot ON?" question.
@@ -245,6 +358,7 @@ def render_question(node_id, node):
                 st.rerun()
 
     render_nav_buttons(node_id)
+    render_contribute_widget(node["text"])
 
 
 def render_checklist(node_id, node):
@@ -296,6 +410,7 @@ def render_checklist(node_id, node):
             st.caption(f"Complete {len(remaining)} more step(s) above to enable the green button.")
 
     render_nav_buttons(node_id)
+    render_contribute_widget(node["text"])
 
 
 def render_solution(node):
@@ -321,6 +436,8 @@ def render_solution(node):
         if st.button("This didn't help — Go back", use_container_width=True):
             go_back()
             st.rerun()
+
+    render_contribute_widget(node["title"])
 
 
 def render_breadcrumbs(title):
@@ -372,6 +489,49 @@ if st.session_state.selected_flow is None:
                         st.session_state.current_node = entry["start"]
                         st.session_state.history = []
                         st.rerun()
+
+    # --- Contributions review panel (visible to operator) ---
+    fb_entries = _load_feedback()
+    n_uploads = _count_uploads()
+    if fb_entries or n_uploads:
+        st.write("")
+        st.divider()
+        with st.expander(
+            f"📬 Contributions pending review — {len(fb_entries)} feedback · {n_uploads} upload(s)"
+        ):
+            if n_uploads:
+                up_dir = _CONTRIB / "uploads"
+                st.write(f"**{n_uploads} uploaded file(s)** saved in `contributions/uploads/`")
+                for meta_file in sorted(up_dir.rglob("*_meta.json"), reverse=True)[:10]:
+                    try:
+                        with open(meta_file, encoding="utf-8") as mf:
+                            meta = json.load(mf)
+                        media_path = meta_file.parent / meta["saved_as"]
+                        col_a, col_b = st.columns([2, 3])
+                        with col_a:
+                            st.caption(
+                                f"**{meta['timestamp']}**  \n"
+                                f"Flow: `{meta['flow']}` · Node: `{meta['node']}`  \n"
+                                f"File: `{meta['original_name']}`"
+                            )
+                        with col_b:
+                            if media_path.exists():
+                                suffix = media_path.suffix.lower()
+                                if suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+                                    st.image(str(media_path), use_container_width=True)
+                                elif suffix in {".mp4", ".mov"}:
+                                    st.video(str(media_path))
+                    except Exception:
+                        pass
+
+            if fb_entries:
+                st.write(f"**{len(fb_entries)} feedback report(s):**")
+                for entry in reversed(fb_entries[-15:]):
+                    st.markdown(
+                        f"**{entry['timestamp']}** · Flow: `{entry['flow']}` · "
+                        f"Step: _{entry.get('step', entry['node'])}_"
+                    )
+                    st.info(entry["message"])
 
 # --- Troubleshooting flow ---
 else:
