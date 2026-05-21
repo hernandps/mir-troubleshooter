@@ -93,6 +93,14 @@ def _count_uploads():
     return sum(1 for f in up_dir.rglob("*") if f.is_file() and not f.name.endswith("_meta.json"))
 
 
+def _check_admin_password(entered: str) -> bool:
+    try:
+        correct = st.secrets.get("admin_password", "mir-admin")
+    except Exception:
+        correct = "mir-admin"
+    return entered.strip() == correct
+
+
 def render_contribute_widget(node_label):
     node_id = st.session_state.get("current_node", "unknown")
     flow_key = st.session_state.get("selected_flow", "home")
@@ -454,6 +462,8 @@ if "history" not in st.session_state:
     st.session_state.history = []
 if "selected_flow" not in st.session_state:
     st.session_state.selected_flow = None
+if "admin_mode" not in st.session_state:
+    st.session_state.admin_mode = False
 
 # --- Header ---
 st.title("🤖 MiR Robot Troubleshooter")
@@ -490,18 +500,28 @@ if st.session_state.selected_flow is None:
                         st.session_state.history = []
                         st.rerun()
 
-    # --- Contributions review panel (visible to operator) ---
-    fb_entries = _load_feedback()
-    n_uploads = _count_uploads()
-    if fb_entries or n_uploads:
-        st.write("")
-        st.divider()
-        with st.expander(
-            f"📬 Contributions pending review — {len(fb_entries)} feedback · {n_uploads} upload(s)"
-        ):
+    # --- Admin panel (password-protected) ---
+    st.write("")
+    st.divider()
+
+    if st.session_state.admin_mode:
+        # ── Logged-in view ────────────────────────────────────────────────────
+        fb_entries = _load_feedback()
+        n_uploads = _count_uploads()
+        col_title, col_logout = st.columns([5, 1])
+        with col_title:
+            st.markdown(f"**Admin — {len(fb_entries)} feedback · {n_uploads} upload(s)**")
+        with col_logout:
+            if st.button("Log out", key="admin_logout"):
+                st.session_state.admin_mode = False
+                st.rerun()
+
+        if not fb_entries and not n_uploads:
+            st.caption("No contributions yet.")
+        else:
             if n_uploads:
                 up_dir = _CONTRIB / "uploads"
-                st.write(f"**{n_uploads} uploaded file(s)** saved in `contributions/uploads/`")
+                st.write(f"**Uploaded files** (saved in `contributions/uploads/`)")
                 for meta_file in sorted(up_dir.rglob("*_meta.json"), reverse=True)[:10]:
                     try:
                         with open(meta_file, encoding="utf-8") as mf:
@@ -511,7 +531,8 @@ if st.session_state.selected_flow is None:
                         with col_a:
                             st.caption(
                                 f"**{meta['timestamp']}**  \n"
-                                f"Flow: `{meta['flow']}` · Node: `{meta['node']}`  \n"
+                                f"Flow: `{meta['flow']}`  \n"
+                                f"Node: `{meta['node']}`  \n"
                                 f"File: `{meta['original_name']}`"
                             )
                         with col_b:
@@ -525,13 +546,30 @@ if st.session_state.selected_flow is None:
                         pass
 
             if fb_entries:
-                st.write(f"**{len(fb_entries)} feedback report(s):**")
-                for entry in reversed(fb_entries[-15:]):
+                st.write(f"**Feedback reports:**")
+                for entry in reversed(fb_entries[-20:]):
                     st.markdown(
                         f"**{entry['timestamp']}** · Flow: `{entry['flow']}` · "
                         f"Step: _{entry.get('step', entry['node'])}_"
                     )
                     st.info(entry["message"])
+
+    else:
+        # ── Login view (inconspicuous) ─────────────────────────────────────────
+        with st.expander("Admin"):
+            pwd = st.text_input(
+                "Password",
+                type="password",
+                key="admin_pwd_input",
+                label_visibility="collapsed",
+                placeholder="Admin password",
+            )
+            if st.button("Log in", key="admin_login_btn"):
+                if _check_admin_password(pwd):
+                    st.session_state.admin_mode = True
+                    st.rerun()
+                else:
+                    st.error("Wrong password.")
 
 # --- Troubleshooting flow ---
 else:
