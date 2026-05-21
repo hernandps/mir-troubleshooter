@@ -1,6 +1,9 @@
 import streamlit as st
 from pathlib import Path
 from flows.robot_wont_move import FLOW as FLOW_WONT_MOVE
+from flows.protective_state import FLOW as FLOW_PROTECTIVE
+from flows.wifi_connectivity import FLOW as FLOW_WIFI
+from flows.losing_localization import FLOW as FLOW_LOCALIZATION
 
 st.set_page_config(
     page_title="MiR Troubleshooter",
@@ -47,27 +50,18 @@ FLOWS = {
     },
     "losing_localization": {
         "title": "Robot Losing Localization",
-        "flow": _stub(
-            "Robot Losing Localization",
-            "Robot is drifting, teleporting on the map, or reporting 'Localization lost'.",
-        ),
-        "start": "stub",
+        "flow": FLOW_LOCALIZATION,
+        "start": "q_localization_symptom",
     },
     "protective_state": {
         "title": "Constantly in Protective State",
-        "flow": _stub(
-            "Constantly in Protective State",
-            "Robot keeps entering protective stop — E-stop or laser fields triggering unexpectedly.",
-        ),
-        "start": "stub",
+        "flow": FLOW_PROTECTIVE,
+        "start": "q_stop_type",
     },
     "wifi_problems": {
         "title": "Wi-Fi / Connectivity",
-        "flow": _stub(
-            "Wi-Fi / Connectivity",
-            "Robot drops connection, intermittent network issues, or can't reach the Fleet.",
-        ),
-        "start": "stub",
+        "flow": FLOW_WIFI,
+        "start": "q_connection_method",
     },
     "fleet_problems": {
         "title": "Fleet Manager Problems",

@@ -169,7 +169,7 @@ FLOW = {
             "type": "solution",
             "severity": "easy",
             "title": "Battery in Deep Sleep Mode",
-            "image": None,
+            "image": "assets/images/MiR250 yellow status lights.jpg",
             "video": None,
             "steps": [
                 "Locate the battery lever on the side of the robot.",
@@ -275,7 +275,10 @@ FLOW = {
             "type": "solution",
             "severity": "hard",
             "title": "CPU May Not Be Running",
-            "image": None,
+            "image": [
+                "assets/images/robot computer power button MiR250.jpg",
+                "assets/images/robot computer power button MiR600.jpg",
+            ],
             "video": None,
             "steps": [
                 "Try pressing the power button directly on the CPU unit inside the robot.",
