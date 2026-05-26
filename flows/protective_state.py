@@ -185,7 +185,10 @@ FLOW = {
                 "A successful ping returns replies for most of the 4 packets.\n"
                 "On MiR250 you can also check the network indicator on the scanner display itself."
             ),
-            "image": None,
+            "image": [
+                "assets/images/scanner network disconnected.jpg",
+                "assets/images/scanner network connected.jpg",
+            ],
             "video": None,
             "options": [
                 {"label": "Yes — both scanners respond to ping",    "next": "sol_sick_report",   "style": "good"},

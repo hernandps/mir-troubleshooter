@@ -7,6 +7,12 @@ from flows.robot_wont_move import FLOW as FLOW_WONT_MOVE
 from flows.protective_state import FLOW as FLOW_PROTECTIVE
 from flows.wifi_connectivity import FLOW as FLOW_WIFI
 from flows.losing_localization import FLOW as FLOW_LOCALIZATION
+from flows.not_starting import FLOW as FLOW_NOT_STARTING
+from flows.battery import FLOW as FLOW_BATTERY
+from flows.docking import FLOW as FLOW_DOCKING
+from flows.charging_station import FLOW as FLOW_CHARGING
+from flows.camera_3d import FLOW as FLOW_CAMERA
+from flows.can_bus import FLOW as FLOW_CAN_BUS
 
 st.set_page_config(
     page_title="MiR Troubleshooter",
@@ -266,6 +272,16 @@ FLOWS = {
         "flow": FLOW_WONT_MOVE,
         "start": "q_unused_days",
     },
+    "not_starting": {
+        "title": "Robot Not Starting Up",
+        "flow": FLOW_NOT_STARTING,
+        "start": "q_power_button_color",
+    },
+    "battery_issues": {
+        "title": "Battery Issues",
+        "flow": FLOW_BATTERY,
+        "start": "q_battery_symptom",
+    },
     "losing_localization": {
         "title": "Robot Losing Localization",
         "flow": FLOW_LOCALIZATION,
@@ -280,6 +296,26 @@ FLOWS = {
         "title": "Wi-Fi / Connectivity",
         "flow": FLOW_WIFI,
         "start": "q_connection_method",
+    },
+    "docking_problems": {
+        "title": "Docking Issues",
+        "flow": FLOW_DOCKING,
+        "start": "q_multiple_robots",
+    },
+    "charging_station": {
+        "title": "Charging Station Not Charging",
+        "flow": FLOW_CHARGING,
+        "start": "q_charge_symptom",
+    },
+    "camera_3d": {
+        "title": "3D Camera Issues",
+        "flow": FLOW_CAMERA,
+        "start": "q_camera_symptom",
+    },
+    "can_bus": {
+        "title": "CAN Bus / Lights Not Working",
+        "flow": FLOW_CAN_BUS,
+        "start": "q_can_symptoms",
     },
     "fleet_problems": {
         "title": "Fleet Manager Problems",
@@ -316,10 +352,46 @@ PROBLEM_CARDS = [
         "badge": "Most Common",
     },
     {
+        "key": "protective_state",
+        "icon": "🛡️",
+        "title": "Constantly in Protective State",
+        "desc": "Robot keeps stopping — E-stop or laser fields triggering",
+    },
+    {
+        "key": "not_starting",
+        "icon": "🔌",
+        "title": "Robot Not Starting Up",
+        "desc": "Power button on, but status lights stuck yellow or no startup",
+    },
+    {
         "key": "robot_wont_turn_on",
         "icon": "⚡",
         "title": "Robot Won't Turn On",
         "desc": "No lights or display response when pressing power",
+    },
+    {
+        "key": "battery_issues",
+        "icon": "🔋",
+        "title": "Battery Issues",
+        "desc": "Battery won't charge, deep sleep, power save mode",
+    },
+    {
+        "key": "wifi_problems",
+        "icon": "📶",
+        "title": "Wi-Fi / Connectivity",
+        "desc": "Connection drops, can't reach the robot or Fleet",
+    },
+    {
+        "key": "docking_problems",
+        "icon": "🎯",
+        "title": "Docking Issues",
+        "desc": "Robot fails to dock to markers, charging stations, or racks",
+    },
+    {
+        "key": "charging_station",
+        "icon": "⚡",
+        "title": "Charging Station Not Charging",
+        "desc": "Robot docks but doesn't charge, or charging stops early",
     },
     {
         "key": "losing_localization",
@@ -328,16 +400,16 @@ PROBLEM_CARDS = [
         "desc": "Robot doesn't know where it is, drifts on the map",
     },
     {
-        "key": "protective_state",
-        "icon": "🛡️",
-        "title": "Constantly in Protective State",
-        "desc": "Robot keeps stopping — E-stop or laser fields triggering",
+        "key": "camera_3d",
+        "icon": "📷",
+        "title": "3D Camera Issues",
+        "desc": "Phantom obstacles, camera errors, detection failures",
     },
     {
-        "key": "wifi_problems",
-        "icon": "📶",
-        "title": "Wi-Fi / Connectivity",
-        "desc": "Connection drops, can't reach the robot or Fleet",
+        "key": "can_bus",
+        "icon": "💡",
+        "title": "CAN Bus / Lights Not Working",
+        "desc": "Indicator lights faulty, proximity sensors not responding",
     },
     {
         "key": "fleet_problems",

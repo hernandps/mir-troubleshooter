@@ -31,7 +31,7 @@ FLOW = {
             "text": "Check and clean the safety laser scanners and wheels",
             "hint": "Dirty or scratched scanners give inaccurate distance data, which causes localization errors. Slipping wheels also cause drift.",
             "image": "assets/images/scanner clean.jpeg",
-            "video": None,
+            "video": "assets/images/slippery floor.mp4",
             "info": (
                 "The robot uses laser scanner data to compare against the map and find its position. "
                 "If scanners are dirty or damaged, the data is wrong and localization fails.\n\n"
